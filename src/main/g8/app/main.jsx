@@ -1,44 +1,29 @@
 var React = require('react'),
     ReactRouter = require('react-router'),
-    Routes = require('./routes.jsx');
+    Route = ReactRouter.Route,
+    Redirect = ReactRouter.Redirect,
+    Bluebird = require('bluebird'),
+    extend = require('extend');
 
-Promise.allProps = function(f) {
-  if (f instanceof Promise) {
-    return f;
-  } else if (Array.isArray(f)) {
-    return Promise.all(f);
-  } else if (typeof f == 'object') {
-    var keys = [];
-    var valueFutures = [];
-    for (key in f) {
-      if (f.hasOwnProperty(key)) {
-        keys.push(key);
-        valueFutures.push(f[key]);
-      }
-    }
-    return Promise.all(valueFutures).then(values => {
-      var result = {};
-      for (var i = 0, l = keys.length; i < l; i++) {
-        result[keys[i]] = values[i];
-      }
-      return result;
-    });
-  } else {
-    throw new Error('Not supported');
-  }
-};
+var App = require('./views/App.jsx'),
+    Home = require('./views/Home.jsx');
+
+var routes = (
+  <Route name="app" handler={App} path="/">
+    <Route name="home" handler={Home} path="/"/>
+  </Route>
+);
 
 var fetchData = function (routes, params) {
-  var data = {};
-  var fetch = routes
+  var fetches = routes
     .filter(r => r.handler.fetchData)
-    .map(r => Promise.allProps(r.handler.fetchData(params)).then(d => data[r.name] = d));
+    .map(r => Bluebird.props(r.handler.fetchData(params)));
 
-  return Promise.all(fetch).then(() => data);
+  return Bluebird.reduce(fetches, (data, fetch) => extend(data, fetch), {});
 };
 
-ReactRouter.run(Routes, ReactRouter.HistoryLocation, function (Handler, state) {
+ReactRouter.run(routes, function (Handler, state) {
   fetchData(state.routes, state.params).then((data) => {
-    React.render(<Handler params={state.params} data={data}/>, document.body);
+    React.render(<Handler data={data}/>, document.body);
   });
 });

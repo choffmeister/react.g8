@@ -11,7 +11,7 @@ var Home = React.createClass({
   },
 
   render: function () {
-    var lines = this.props.data['home'].test.map((line) =>
+    var lines = this.props.data.test.map((line) =>
       <div>
         {line}
       </div>
